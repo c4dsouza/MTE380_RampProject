@@ -10,17 +10,17 @@ int scanTime = 30000;
 int scanVals[10000];
 int numScanVals = 0;
 
-int ultrasonic = 25;
+int ultrasonic = 22;
 
 void setup() {
   Serial.begin(9600);
   AFMS.begin();
   pinMode(ultrasonic, OUTPUT);
   digitalWrite(ultrasonic, LOW);
-  mr->run(FORWARD);
-  mr->setSpeed(10);
-  ml->run(BACKWARD);
-  ml->setSpeed(10);
+  mr->run(BACKWARD);
+  mr->setSpeed(30);
+  ml->run(FORWARD);
+  ml->setSpeed(30);
 }
 
 double readUltrasonic() {
@@ -36,14 +36,15 @@ double readUltrasonic() {
 
 double medianUltrasonic() {
   int numSamples = 3;
+  int samples[3];
   double average = 0;
   for(int i = 0; i < numSamples; i++) {
-    averate += readUltrasonic()/numSamples;
+    average += readUltrasonic()/numSamples;
   }
   return average;
 }
 
 void loop() {
   Serial.println(readUltrasonic());
-  delay(1);
+  delay(50);
 }
