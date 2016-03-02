@@ -2,8 +2,8 @@
 
 #define leftMotorBase 128
 #define rightMotorBase  128
-#define MotorMax 200
-#define TIME_PER_DEGREE 10 //Change me
+#define MotorMax 150
+#define TIME_PER_DEGREE 9.3
 
 Adafruit_MotorShield myDriveTrain = Adafruit_MotorShield();
 
@@ -16,7 +16,10 @@ void setup() {
 }
 
 void loop() {
-
+  turnAngle(90, 0);
+  delay(1000);
+  turnAngle(90, 1);
+  delay(1000);
 }
 
 void turnAngle(uint8_t angle, bool dir){
@@ -25,22 +28,15 @@ void turnAngle(uint8_t angle, bool dir){
 
   if (dir){
     leftMotor->run(FORWARD);
-    rightMotor->run(REVERSE);
+    rightMotor->run(BACKWARD);
   } else {
-    leftMotor->run(REVERSE);
+    leftMotor->run(BACKWARD);
     rightMotor->run(FORWARD);
   }
 
-  delayMicroseconds(TIME_PER_DEGREE*angle);
-}
+  delay(long(TIME_PER_DEGREE*angle));
 
-void driveMotors(double drive){
-  int driveOutput = drive;
-  Serial.println(driveOutput);
-  leftMotor->setSpeed(constrain(leftMotorBase+driveOutput, leftMotorMin, leftMotorMax));
-  leftMotor->run(FORWARD);
-  
-  rightMotor->setSpeed(constrain(rightMotorBase-driveOutput, rightMotorMin, rightMotorMax));
-  rightMotor->run(FORWARD);
+  leftMotor->setSpeed(0);
+  rightMotor->setSpeed(0);
 }
 

@@ -3,12 +3,17 @@
 #include <TimerOne.h>
 #include <Adafruit_MotorShield.h>
 
-#define SRF05_Pin 7
-#define PULSE_LENGTH  10
-#define DEG_PER_STEP  3
-#define NUM_STEPS 180/DEG_PER_STEP //needs to be adjusted
+Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
 
-volatile unsigned int numSamples = 0;
+Adafruit_DCMotor *ml = AFMS.getMotor(2);
+Adafruit_DCMotor *mr = AFMS.getMotor(1);
+
+#define SRF05_Pin 22
+#define PULSE_LENGTH  10
+//#define DEG_PER_STEP  3
+//#define NUM_STEPS 180/DEG_PER_STEP //needs to be adjusted
+
+//volatile unsigned int numSamples = 0;
 
 void setup() {
   // initialize timer1
@@ -17,20 +22,17 @@ void setup() {
   // attaches callback() as a timer overflow interrupt with a 50 millisecond period
   Timer1.attachInterrupt(callback, 50000);  
 
-  //SET MOTORS TO ROTATE
-}
+  AFMS.begin();
+  mr->run(BACKWARD);
+  mr->setSpeed(220);
+  ml->run(BACKWARD);
+  ml->setSpeed(220);}
 
 void loop() {
-
 }
 
 void callback(){
-  if (numSamples++ < 50) {
-    int distance_cm = readUltrasonic(); 
-  } else {
-    //STOP ROTATION
-    Timer1.detachInterrupt();
-  }
+Serial.println(readUltrasonic()); 
 }
 
 /*
@@ -52,11 +54,3 @@ int readUltrasonic() {
   int distance = pulseIn(SRF05_Pin, HIGH)/58;
   return distance;
 }
-
-/*
- * 
- */
-void findBlock(){
-
-}
- 

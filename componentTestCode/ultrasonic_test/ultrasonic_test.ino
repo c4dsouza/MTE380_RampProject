@@ -1,12 +1,24 @@
 //SRF05 sample code//
+#include <Adafruit_MotorShield.h>
+
+Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
+
+Adafruit_DCMotor *ml = AFMS.getMotor(2);
+Adafruit_DCMotor *mr = AFMS.getMotor(1);
 
 int duration;                                //Stores duration of pulse in
 int distance;                                // Stores distance
-int sensorpin = 7;                           // Pin for SRF05
+int sensorpin = 22;                           // Pin for SRF05
 
 void setup()
 {
   Serial.begin(9600);
+  AFMS.begin();
+  
+  mr->run(FORWARD);
+  mr->setSpeed(118);
+  ml->run(FORWARD);
+  ml->setSpeed(128);
 }
 
 void loop()
