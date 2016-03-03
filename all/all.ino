@@ -1,5 +1,9 @@
 #include <Adafruit_MotorShield.h>
 #include <PID_v1.h>
+// I2Cdev and MPU6050 must be installed as libraries, or else the .cpp/.h files
+// for both classes must be in the include path of your project
+#include "I2Cdev.h"
+#include "MPU6050.h"
 
 #define leftMotorBase 128
 #define leftMotorMax 200
@@ -8,16 +12,28 @@
 #define rightMotorMax  200
 #define rightMotorMin  40
 #define MotorMax 150
-#define TIME_PER_DEGREE 9.4
 #define Kp_cons  0.03
 #define Ki_cons  0
-#define Kd_cons  0.005
+#define Kd_cons  0.01
 #define numSensors  5
 #define numCalibrations 10
 
 //STATES
 #define FIND_RAMP_STATE 0
 #define RAMP_PID_STATE 1
+
+#define OUTPUT_READABLE_ACCELGYRO
+
+#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+    #include "Wire.h"
+#endif
+
+MPU6050 accelgyro;
+//MPU6050 accelgyro(0x69); // <-- use for AD0 high
+
+int16_t ax, ay, az;
+int16_t gx, gy, gz;
+
 
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
 
@@ -37,7 +53,12 @@ static const uint8_t trigger_pin[] = {51,49,47,45,43};
 double Setpoint, Input, Output;
 PID myPID(&Input, &Output, &Setpoint, Kp_cons,Ki_cons,Kd_cons, REVERSE);
 
-void turnAngle(uint8_t angle, bool dir){
+void turnAngle(int angle, int dir){
+  
+  double position = 0;
+  double acc;
+  unsigned long lastTime = micros();
+  
   ml->setSpeed(MotorMax);
   mr->setSpeed(MotorMax);
 
@@ -48,22 +69,28 @@ void turnAngle(uint8_t angle, bool dir){
     ml->run(BACKWARD);
     mr->run(FORWARD);
   }
-
-  delay(long(TIME_PER_DEGREE*angle));
+  
+  unsigned long now = 0;
+  //while(abs(position) < angle) {
+  while(1){
+    delay(1);
+    acc = accelgyro.getRotationY();
+    now = micros();
+    position += acc * (now - lastTime) * (now - lastTime) / (270000000000);
+    Serial.println(position);
+  }
 
   ml->setSpeed(0);
   mr->setSpeed(0);
 }
 
 int readIRSensor(uint8_t sensorNumber){
-  digitalWrite(trigger_pin[sensorNumber], LOW);
-  int ambient = analogRead(sensor_pin[sensorNumber]);
   digitalWrite(trigger_pin[sensorNumber], HIGH);
   delayMicroseconds(20);
   int measured = analogRead(sensor_pin[sensorNumber]);
   digitalWrite(trigger_pin[sensorNumber], LOW);
   delayMicroseconds(100);
-  return (abs(measured-ambient));
+  return (abs(measured));
 }
 
 double readIRSum(){
@@ -80,26 +107,26 @@ void setupIR(){
     digitalWrite(trigger_pin[i], LOW);
   }
 
-  Setpoint = 1500;
-//  for (int i = 0; i < numCalibrations; i++){
-//    Setpoint += readIRSum();
-//    Serial.println(readIRSum());
-//    delay(250);
-//  }
-//  Setpoint = Setpoint/numCalibrations;
+  Setpoint = 0;
+  for (int i = 0; i < numCalibrations; i++){
+    Setpoint += readIRSum();
+    Serial.println(readIRSum());
+    delay(250);
+  }
+  Setpoint = Setpoint/numCalibrations;
   Serial.print("Calibrated: ");
   Serial.println(Setpoint);
   
-//  delay(5000);
+  delay(2000);
 }
 
 void driveMotors(double drive){
   int driveOutput = drive;
   Serial.println(driveOutput);
-  ml->setSpeed(constrain(leftMotorBase+driveOutput, leftMotorMin, leftMotorMax));
+  ml->setSpeed(constrain(leftMotorBase-driveOutput, leftMotorMin, leftMotorMax));
   ml->run(FORWARD);
   
-  mr->setSpeed(constrain(rightMotorBase-driveOutput, rightMotorMin, rightMotorMax));
+  mr->setSpeed(constrain(rightMotorBase+driveOutput, rightMotorMin, rightMotorMax));
   mr->run(FORWARD);
 }
 
@@ -163,12 +190,12 @@ void findRamp() {
 }
 
 void followRamp() {
+  delay(1000);
+  setupIR();
   mr->run(FORWARD);
   mr->setSpeed(200);
   ml->run(FORWARD);
   ml->setSpeed(215);
-  delay(1000);
-  setupIR();
   Input = readIRSum();
   myPID.SetSampleTime(10);
   myPID.SetMode(AUTOMATIC);
@@ -182,12 +209,20 @@ void followRamp() {
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(38400);
+  #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+      Wire.begin();
+  #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
+      Fastwire::setup(400, true);
+  #endif
+  accelgyro.initialize();
+  Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
+  accelgyro.setYGyroOffset(6);
   AFMS.begin();
   pinMode(ultrasonic, OUTPUT);
   digitalWrite(ultrasonic, LOW);
   
-  findRamp();
+  //findRamp();
   followRamp();
 }
 
