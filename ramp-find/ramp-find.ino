@@ -1,7 +1,10 @@
 #include <Adafruit_MotorShield.h>
 
 
-#define TURN_TIME 1200
+#define leftMotorBase 128
+#define rightMotorBase  128
+#define MotorMax 150
+#define TIME_PER_DEGREE 9.4
 
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
 
@@ -14,6 +17,24 @@ int scanVals[10000];
 int numScanVals = 0;
 
 int ultrasonic = 22;
+
+void turnAngle(uint8_t angle, bool dir){
+  ml->setSpeed(MotorMax);
+  mr->setSpeed(MotorMax);
+
+  if (dir){
+    ml->run(FORWARD);
+    mr->run(BACKWARD);
+  } else {
+    ml->run(BACKWARD);
+    mr->run(FORWARD);
+  }
+
+  delay(long(TIME_PER_DEGREE*angle));
+
+  ml->setSpeed(0);
+  mr->setSpeed(0);
+}
 
 void setup() {
   Serial.begin(9600);
@@ -49,8 +70,8 @@ double medianUltrasonic() {
 
 int ramp = 0;
 unsigned int rampTime = 0;
-int rampThreshold = 250;
-int rampTimeThreshold = 500;
+int rampThreshold = 220;
+int rampTimeThreshold = 300;
 void loop() {
   int reading = readUltrasonic();
   if(reading > rampThreshold && !ramp) {
@@ -61,9 +82,7 @@ void loop() {
     ramp = 0;
   }
   if(ramp && ((unsigned int)(millis() - rampTime)) >= rampTimeThreshold) {
-    ml->run(BACKWARD);
-    mr->setSpeed(0);
-    delay(TURN_TIME);
+    turnAngle(90, 0);
     ml->setSpeed(0);
     mr->setSpeed(0);
     while(true) {};
