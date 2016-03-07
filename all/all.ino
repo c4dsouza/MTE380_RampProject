@@ -18,9 +18,7 @@
 #define numSensors  5
 #define numCalibrations 10
 
-//STATES
-#define FIND_RAMP_STATE 0
-#define RAMP_PID_STATE 1
+#define GYRO_OFFSET -7.175
 
 #define OUTPUT_READABLE_ACCELGYRO
 
@@ -37,8 +35,10 @@ int16_t gx, gy, gz;
 
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
 
-Adafruit_DCMotor *ml = AFMS.getMotor(2);
-Adafruit_DCMotor *mr = AFMS.getMotor(1);
+Adafruit_DCMotor * mr1 = AFMS.getMotor(1);
+Adafruit_DCMotor * mr2 = AFMS.getMotor(3);
+Adafruit_DCMotor * ml1 = AFMS.getMotor(2);
+Adafruit_DCMotor * ml2 = AFMS.getMotor(4);
 
 int scanTime = 30000;
 
@@ -58,30 +58,30 @@ void turnAngle(int angle, int dir){
   double position = 0;
   double acc;
   unsigned long lastTime = micros();
-  
-  ml->setSpeed(MotorMax);
-  mr->setSpeed(MotorMax);
+
+  setLeftMotors(FORWARD, MotorMax);
+  setRightMotors(FORWARD, MotorMax);
 
   if (dir){
-    ml->run(FORWARD);
-    mr->run(BACKWARD);
+    setLeftMotors(BACKWARD, MotorMax);
+    setRightMotors(FORWARD, MotorMax);
   } else {
-    ml->run(BACKWARD);
-    mr->run(FORWARD);
+    setLeftMotors(FORWARD, MotorMax);
+    setRightMotors(BACKWARD, MotorMax);
   }
   
   unsigned long now = 0;
-  //while(abs(position) < angle) {
-  while(1){
-    delay(1);
-    acc = accelgyro.getRotationY();
+  while(abs(position) < angle) {
+    delay(2);
+    acc = accelgyro.getRotationY() + GYRO_OFFSET;
     now = micros();
-    position += acc * (now - lastTime) * (now - lastTime) / (270000000000);
+    position += acc * (now - lastTime) * (now - lastTime) / (400000000000);
+    lastTime = now;
     Serial.println(position);
   }
 
-  ml->setSpeed(0);
-  mr->setSpeed(0);
+  setLeftMotors(FORWARD, 0);
+  setRightMotors(FORWARD, 0);
 }
 
 int readIRSensor(uint8_t sensorNumber){
@@ -123,11 +123,8 @@ void setupIR(){
 void driveMotors(double drive){
   int driveOutput = drive;
   Serial.println(driveOutput);
-  ml->setSpeed(constrain(leftMotorBase-driveOutput, leftMotorMin, leftMotorMax));
-  ml->run(FORWARD);
-  
-  mr->setSpeed(constrain(rightMotorBase+driveOutput, rightMotorMin, rightMotorMax));
-  mr->run(FORWARD);
+  setLeftMotors(FORWARD, constrain(leftMotorBase-driveOutput, leftMotorMin, leftMotorMax));
+  setRightMotors(FORWARD, constrain(rightMotorBase+driveOutput, rightMotorMin, rightMotorMax));
 }
 
 double readUltrasonic() {
@@ -157,10 +154,8 @@ void findRamp() {
   int rampThreshold = 220;
   int rampTimeThreshold = 200;
   
-  mr->run(FORWARD);
-  mr->setSpeed(200);
-  ml->run(FORWARD);
-  ml->setSpeed(215);
+  setLeftMotors(FORWARD, 200);
+  setRightMotors(FORWARD, 200);
   
   int reading = 0;
   
@@ -177,10 +172,8 @@ void findRamp() {
       Serial.println("TURNING");
       turnAngle(90, 0);
       Serial.println("STOPPING");
-      mr->run(FORWARD);
-      mr->setSpeed(200);
-      ml->run(FORWARD);
-      ml->setSpeed(215);
+      setLeftMotors(FORWARD, 200);
+      setRightMotors(FORWARD, 200);
       delay(1000);
       return;
     }
@@ -192,10 +185,8 @@ void findRamp() {
 void followRamp() {
   delay(1000);
   setupIR();
-  mr->run(FORWARD);
-  mr->setSpeed(200);
-  ml->run(FORWARD);
-  ml->setSpeed(215);
+  setLeftMotors(FORWARD, 200);
+  setRightMotors(FORWARD, 200);
   Input = readIRSum();
   myPID.SetSampleTime(10);
   myPID.SetMode(AUTOMATIC);
@@ -206,6 +197,19 @@ void followRamp() {
     myPID.Compute();
     driveMotors(Output);
   }
+}
+
+void setLeftMotors(int direction, int speed) {
+  mr1->run(direction);
+  mr2->run(direction);
+  mr1->setSpeed(speed);
+  mr2->setSpeed(speed);
+}
+void setRightMotors(int direction, int speed) {
+  ml1->run(direction);
+  ml2->run(direction);
+  ml1->setSpeed(speed);
+  ml2->setSpeed(speed);
 }
 
 void setup() {
@@ -221,9 +225,15 @@ void setup() {
   AFMS.begin();
   pinMode(ultrasonic, OUTPUT);
   digitalWrite(ultrasonic, LOW);
-  
-  //findRamp();
-  followRamp();
+  turnAngle(90,0);
+  delay(2000);
+  turnAngle(90,0);
+  delay(2000);
+  turnAngle(90,0);
+  delay(2000);
+  turnAngle(90,0);
+//  findRamp();
+//  followRamp();
 }
 
 void loop() {
