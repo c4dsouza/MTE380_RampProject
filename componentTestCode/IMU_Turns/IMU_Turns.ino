@@ -10,6 +10,7 @@
 
 MPU6050 accelgyro;
 //MPU6050 accelgyro(0x69); // <-- use for AD0 high
+#define GYRO_OFFSET -7.175
 
 int16_t ax, ay, az;
 int16_t gx, gy, gz;
@@ -60,6 +61,7 @@ void setup() {
 //    Serial.print("\n");
 
     pinMode(LED_PIN, OUTPUT);
+
 }
 
 void loop() {
@@ -80,18 +82,18 @@ void loop() {
     delay(5);
 }
 
-
 int getTurnAngle(){
   unsigned long last_time_sampled = 0;
   unsigned long last_time_printed = 0;
 
   // The integral is in units of DN*us, 1 DN being the ADC step.
-  float vel, acc, pos;
+  float vel, acc, pos = 0;
   unsigned long now = micros();
+  last_time_sampled = now;
   
   while (now - last_time_printed >= 1000000) {
     now = micros();
-    acc = accelgyro.getRotationY();
+    acc = accelgyro.getRotationY() + GYRO_OFFSET;
 
     pos += acc * (now - last_time_sampled) * (now - last_time_sampled) / (400000000000);
 
