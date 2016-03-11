@@ -72,7 +72,7 @@ void pivot(bool dir, int baseSpeed, int amount){
     now = micros();
     pos += acc * (now - lastTime) * (now - lastTime) / SCALE_CONSTANT;
     lastTime = now;
-//    Serial.println(pos);
+    Serial.println(pos);
   }
 
   setLeftMotors(FORWARD, 0);
