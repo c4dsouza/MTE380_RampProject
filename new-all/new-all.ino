@@ -3,7 +3,7 @@
 #include <Adafruit_MotorShield.h>
 #include "I2Cdev.h"
 #include "MPU6050.h"
-#include "Wire.h"
+//#include "Wire.h"
 
 /*
  * Initializations
@@ -35,7 +35,7 @@ NewPing sonar(ULTRASONIC_PIN, ULTRASONIC_PIN, MAX_DISTANCE);
 #define numIRSensors  4
 static const uint8_t sensor_pin[] = {A11,A12,A13,A14,A15};
 static const uint8_t trigger_pin[] = {51,49,47,45,43};
-double IRSetpoint = 2000;
+double IRSetpoint = 3000;
 
 /*
  * Motor drive code
@@ -91,8 +91,16 @@ void steerSoft(bool dir, int baseSpeed, int amount) {
 }
 
 void steerHard (bool dir, int baseSpeed, int amount) {
-  setLeftMotors(FORWARD, constrain(baseSpeed - amount, motorMinSpeed, motorMaxSpeed));
-  setRightMotors(FORWARD, constrain(baseSpeed + amount, motorMinSpeed, motorMaxSpeed));
+  setLeftMotors(BACKWARD, constrain(baseSpeed - amount, motorMinSpeed, motorMaxSpeed));
+  setRightMotors(BACKWARD, constrain(baseSpeed + amount, motorMinSpeed, motorMaxSpeed));
+//  mr2->run(FORWARD);
+//  ml2->run(FORWARD);
+//  mr2->setSpeed(constrain(baseSpeed + amount, motorMinSpeed, motorMaxSpeed));
+//  ml2->setSpeed(constrain(baseSpeed - amount, motorMinSpeed, motorMaxSpeed));
+//  mr1->run(BACKWARD);
+//  ml1->run(BACKWARD);
+//  mr1->setSpeed(baseSpeed);
+//  ml1->setSpeed(baseSpeed);
 }
 
 void drive(bool dir, int baseSpeed, long amount, bool stopWhenDone = 1){
@@ -151,41 +159,51 @@ double readIRSum(){
  * Section Code
  */
 void findRamp() {
-  int ramp, rampTime = 0;
-  int rampUpperThreshold = 220; //TODO: tune threshold
-  int rampLowerThreshold = 100; //TODO: tune threshold
-  int rampTimeThreshold = 200; //TODO: tune threshold
+  int rampTime = 750;
   int sonarDistance = 0;
     
-  drive(1, normalSpeed, 0, 0);
+  drive(1, normalSpeed-150, 0, 0);
   
   while(true) {
-    sonarDistance = sonar.convert_cm(sonar.ping_median(5));
-    if(sonarDistance > rampUpperThreshold && !ramp) { //TODO: tune threshold
-      ramp = 1;
-      rampTime = millis();
+//    sonarDistance = sonar.convert_cm(sonar.ping_median(3));
+    sonarDistance = sonar.ping_cm();
+    Serial.println(sonarDistance);
+    if(sonarDistance != 0 && sonarDistance < 250) { //TODO: tune threshold
+      delay(30);
+      continue;
     }
-    
-    if(sonarDistance < rampLowerThreshold && ramp) { //TODO: tune threshold
-      ramp = 0;
-    }
-
-    if(ramp && ((unsigned int)(millis() - rampTime)) >= rampTimeThreshold) { //TODO: tune threshold
-      pivot(0, normalSpeed, 90);
-      drive(1, normalSpeed, 0, 0);
-      return;
-    }
-    
-    delay(50);
+    break;
   }
+  //    delay(rampTime);
+
+  drive(0, 70,0,0);
+  drive(0, 70,0,0);
+  drive(0, 70,0,0);
+  drive(0, 70,0,0);
+  drive(0, 70,0,0);
+  drive(0, 70,0,0);
+  drive(0, 70,0,0);
+  delay(500);
+
+  pivot(1, 150, 90);
+  drive(0, normalSpeed, 0, 0);
+  drive(0, normalSpeed, 0, 0);
+  drive(0, normalSpeed, 0, 0);
+  drive(0, normalSpeed, 0, 0);
+  drive(0, normalSpeed, 0, 0);
+  drive(0, normalSpeed, 0, 0);
+  drive(0, normalSpeed, 0, 0);
+  drive(0, normalSpeed, 0, 0);
+
+  delay(1000);
 }
 
 void goUpRamp() {
-  double Kp_u = 0.03; double Ki_u = 0; double Kd_u = 0.05;
+  double Kp_u = 0.03; double Ki_u = 0.3; double Kd_u = 0.05;
   double input, output;
     
   PID upRampPid(&input, &output, &IRSetpoint, Kp_u,Ki_u,Kd_u, REVERSE);
-  upRampPid.SetSampleTime(10);
+  upRampPid.SetSampleTime(20);
   upRampPid.SetMode(AUTOMATIC);
   upRampPid.SetOutputLimits(-100, 100);
   
@@ -198,30 +216,6 @@ void goUpRamp() {
 //      brake();
 //      return;
 //    }
-  }
-}
-
-void goDownRamp(){
-  double Kp_d = 0.9; double Ki_d = 0.1; double Kd_d = 0.9; //TODO: tune k vals
-  double input, output;
-  PID downRampPid(&input, &output, &IRSetpoint, Kp_d,Ki_d,Kd_d, REVERSE);
-  downRampPid.SetSampleTime(10);
-  downRampPid.SetMode(AUTOMATIC);
-  downRampPid.SetOutputLimits(-30, 30);
-  
-  while(true) {
-    input = readIRSum();
-    downRampPid.Compute();
-    if (output < 0) {
-      steerSoft(1, 60, output);
-    } else {
-      steerSoft(0, 60, output);
-    }
-
-    if (accelgyro.getAccelerationX() < OFF_RAMP_THRESHOLD) {
-      drive(1, normalSpeed, 5, 1); //TODO: tune distance
-      return;
-    }
   }
 }
 
