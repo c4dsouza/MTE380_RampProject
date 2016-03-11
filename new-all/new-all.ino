@@ -32,10 +32,10 @@ Adafruit_DCMotor * ml2 = AFMS.getMotor(4);
 #define MAX_DISTANCE 400
 NewPing sonar(ULTRASONIC_PIN, ULTRASONIC_PIN, MAX_DISTANCE);
 
-#define numIRSensors  5
+#define numIRSensors  4
 static const uint8_t sensor_pin[] = {A11,A12,A13,A14,A15};
 static const uint8_t trigger_pin[] = {51,49,47,45,43};
-double IRSetpoint = 2500;
+double IRSetpoint = 2000;
 
 /*
  * Motor drive code
@@ -91,11 +91,8 @@ void steerSoft(bool dir, int baseSpeed, int amount) {
 }
 
 void steerHard (bool dir, int baseSpeed, int amount) {
-  setLeftMotors(FORWARD, baseSpeed);
-  setRightMotors(FORWARD, baseSpeed);
-  
-  mr2->setSpeed(constrain(baseSpeed + amount, motorMinSpeed, motorMaxSpeed));
-  ml2->setSpeed(constrain(baseSpeed - amount, motorMinSpeed, motorMaxSpeed));
+  setLeftMotors(FORWARD, constrain(baseSpeed - amount, motorMinSpeed, motorMaxSpeed));
+  setRightMotors(FORWARD, constrain(baseSpeed + amount, motorMinSpeed, motorMaxSpeed));
 }
 
 void drive(bool dir, int baseSpeed, long amount, bool stopWhenDone = 1){
@@ -129,15 +126,15 @@ void brake(){
 void setupIR(){
   for (int i = 0; i < numIRSensors; i++){
     pinMode(trigger_pin[i], OUTPUT);
-    digitalWrite(trigger_pin[i], LOW);
+    digitalWrite(trigger_pin[i], HIGH);
   }
 }
 
 int readIRSensor(uint8_t sensorNumber){
-  digitalWrite(trigger_pin[sensorNumber], HIGH);
+//  digitalWrite(trigger_pin[sensorNumber], HIGH);
   delayMicroseconds(20);
   int measured = analogRead(sensor_pin[sensorNumber]);
-  digitalWrite(trigger_pin[sensorNumber], LOW);
+//  digitalWrite(trigger_pin[sensorNumber], LOW);
   delayMicroseconds(100);
   return (abs(measured));
 }
@@ -197,10 +194,10 @@ void goUpRamp() {
     upRampPid.Compute();
     steerHard(0, normalSpeed, output);
 
-    if (accelgyro.getAccelerationX() > DOWN_RAMP_THRESHOLD) {
-      brake();
-      return;
-    }
+//    if (accelgyro.getAccelerationX() > DOWN_RAMP_THRESHOLD) {
+//      brake();
+//      return;
+//    }
   }
 }
 
