@@ -53,7 +53,7 @@ void setRightMotors(int direction, int speed) {
 }
 
 void pivot(bool dir, int baseSpeed, int amount){
-  double pos, acc;
+  double pos = 0, acc;
   unsigned long lastTime = micros();
 
   if (dir){
