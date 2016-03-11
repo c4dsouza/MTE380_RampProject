@@ -5,21 +5,21 @@
 #include "MPU6050.h"
 #include "Wire.h"
 
-
 /*
  * Initializations
  * IMU, Motors, Ultrasonic Sensors, IR Sensors and PID
  */
 #define GYRO_OFFSET -7.175
-#define ACC_OFFSET  0
 #define YAW_CONSTANT  400000000000
-#define X_TRANSLATION_CONSTANT  400000000000
+#define DOWN_RAMP_THRESHOLD 1000
+#define OFF_RAMP_THRESHOLD 3000
 #define OUTPUT_READABLE_ACCELGYRO
 MPU6050 accelgyro;
 int16_t ax, ay, az;
 int16_t gx, gy, gz;
 
 #define motorMaxSpeed  255
+#define normalSpeed   220
 #define motorMinSpeed  60
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(); 
 Adafruit_DCMotor * mr1 = AFMS.getMotor(1);
@@ -71,14 +71,14 @@ void pivot(bool dir, int baseSpeed, int amount){
     now = micros();
     pos += acc * (now - lastTime) * (now - lastTime) / YAW_CONSTANT;
     lastTime = now;
-    Serial.println(pos);
+//    Serial.println(pos);
   }
 
   setLeftMotors(FORWARD, 0);
   setRightMotors(FORWARD, 0);
 }
 
-void steer(bool dir, int baseSpeed, int amount) {
+void steerSoft(bool dir, int baseSpeed, int amount) {
   setLeftMotors(FORWARD, baseSpeed);
   setRightMotors(FORWARD, baseSpeed);
   
@@ -89,8 +89,16 @@ void steer(bool dir, int baseSpeed, int amount) {
   }
 }
 
-void drive(bool dir, int baseSpeed, int amount, bool stopWhenDone = 0){
-  double pos, acc;
+void steerHard (bool dir, int baseSpeed, int amount) {
+  setLeftMotors(FORWARD, baseSpeed);
+  setRightMotors(FORWARD, baseSpeed);
+  
+  mr2->setSpeed(constrain(baseSpeed + amount, motorMinSpeed, motorMaxSpeed));
+  ml2->setSpeed(constrain(baseSpeed - amount, motorMinSpeed, motorMaxSpeed));
+}
+
+void drive(bool dir, int baseSpeed, long amount, bool stopWhenDone = 1){
+  long angle = 0, dist = 0, ax = 0, gy = 0;
   unsigned long lastTime = micros();
   
   if (dir){
@@ -102,16 +110,8 @@ void drive(bool dir, int baseSpeed, int amount, bool stopWhenDone = 0){
   }
   
   if (stopWhenDone) {
-    unsigned long now = 0;
-    while(abs(pos) < amount) {
-      delay(2);
-      acc = accelgyro.getAccelerationX() + ACC_OFFSET;
-      now = micros();
-      pos += acc * (now - lastTime) * (now - lastTime) / X_TRANSLATION_CONSTANT;
-      lastTime = now;
-      Serial.println(pos);
-    }
-  
+    delay(amount);
+    
     setLeftMotors(FORWARD, 0);
     setRightMotors(FORWARD, 0);
   }
@@ -154,35 +154,36 @@ double readIRSum(){
  */
 void findRamp() {
   int ramp, rampTime = 0;
-  int rampThreshold = 220;
-  int rampTimeThreshold = 200;
+  int rampUpperThreshold = 220; //TODO: tune threshold
+  int rampLowerThreshold = 100; //TODO: tune threshold
+  int rampTimeThreshold = 200; //TODO: tune threshold
+  int sonarDistance = 0;
     
-  drive(true, 200, 0, 0);
+  drive(1, normalSpeed, 0, 0);
   
-  int reading = 0;
   while(true) {
-    reading = readUltrasonic();
-    if(reading > rampThreshold && !ramp) {
+    sonarDistance = sonar.convert_cm(sonar.ping_median(5));
+    if(sonarDistance > rampUpperThreshold && !ramp) { //TODO: tune threshold
       ramp = 1;
       rampTime = millis();
     }
-    if(reading <= rampThreshold) {
+    
+    if(sonarDistance < rampLowerThreshold && ramp) { //TODO: tune threshold
       ramp = 0;
     }
-    if(ramp && ((unsigned int)(millis() - rampTime)) >= rampTimeThreshold) {
-      turnAngle(90, 0);
-      setLeftMotors(FORWARD, 200);
-      setRightMotors(FORWARD, 200);
-      delay(1000);
+
+    if(ramp && ((unsigned int)(millis() - rampTime)) >= rampTimeThreshold) { //TODO: tune threshold
+      pivot(0, normalSpeed, 90);
+      drive(1, normalSpeed, 0, 0);
       return;
     }
-    Serial.println(reading);
+    
     delay(50);
   }
 }
 
 void goUpRamp() {
-  double Kp_u = 0.03; Ki_u = 0; Kd_u = 0.05;
+  double Kp_u = 0.03; double Ki_u = 0; double Kd_u = 0.05;
   double input, output;
     
   PID upRampPid(&input, &output, &IRSetpoint, Kp_u,Ki_u,Kd_u, REVERSE);
@@ -191,25 +192,93 @@ void goUpRamp() {
   upRampPid.SetOutputLimits(-100, 100);
   
   while(true) {
-    Input = readIRSum();
+    input = readIRSum();
     upRampPid.Compute();
-    pivot(output);
-  }
-}
-void goUpRamp(){
-  double input, output, setpoint;
-  PID upRampPid(&input, &output, &setpoint, Kp_u,Ki_u,Kd_u, REVERSE);
+    steerHard(0, normalSpeed, output);
 
-  
+    if (accelgyro.getAccelerationZ() < DOWN_RAMP_THRESHOLD) { //TODO: tune threshold
+      brake();
+      return;
+    }
+  }
 }
 
 void goDownRamp(){
-  double input, output, setpoint;
-  PID downRampPid(&input, &output, &setpoint, Kp_d,Ki_d,Kd_d, REVERSE);
+  double Kp_d = 0.9; double Ki_d = 0.1; double Kd_d = 0.9; //TODO: tune k vals
+  double input, output;
+  PID downRampPid(&input, &output, &IRSetpoint, Kp_d,Ki_d,Kd_d, REVERSE);
+  downRampPid.SetSampleTime(10);
+  downRampPid.SetMode(AUTOMATIC);
+  downRampPid.SetOutputLimits(-30, 30);
+  
+  while(true) {
+    input = readIRSum();
+    downRampPid.Compute();
+    if (output < 0) {
+      steerSoft(1, 60, output);
+    } else {
+      steerSoft(0, 60, output);
+    }
+
+    if (accelgyro.getAccelerationZ() > OFF_RAMP_THRESHOLD) { //TODO: tune threshold
+      drive(1, normalSpeed, 5, 1); //TODO: tune distance
+      return;
+    }
+  }
 }
 
 void findPost(){
+  unsigned long startTime = millis();
+  int sonarPing = 0, sonarDist = 0; int postDetected = 130; int postThreshold = 2500; int inclineCount = 0;
+  bool postFound = false; bool detected = false;
+  double ax = 1; axBase = 0;
   
+  pivot(1, 80, 90);
+  drive(1, normalSpeed, 0, 0); 
+
+  while(!postFound){
+    sonarDist = sonar.convert_cm(sonar.ping_median(4));
+    Serial.println(sonarDist);
+    if (sonarDist < postDetected){
+      if (!detected) {
+        detected = true;
+        startTime = millis();
+      } else if ((millis() - startTime) > postThreshold) { 
+        postFound = true;
+        break;
+      }
+    } else {
+      detected = false;
+    }
+    delay(30);
+  }
+
+  pivot(0, 80, 90);
+  
+/*
+ * Fix this section
+ */
+  brake();
+  delay(100);
+  axBase = accelgyro.getAccelerationX();
+  drive(1, normalSpeed, 0, 0);
+  
+  delay(500);
+  while(true){
+    delay(10);
+    double ax = accelgyro.getAccelerationX();
+    //double ax = abs((accelgyro.getAccelerationX() - accBase)/accBase) ;
+    Serial.println(ax);
+    if (ax < -3000) {
+      break;
+    }
+//    if (ax > 0.2){
+//      if (inclineCount++ > 100){
+////        break;
+//      }
+//    }
+  }
+  brake();
 }
 
 
@@ -229,6 +298,11 @@ void setup() {
 
   //No setup needed for ultrasonic
 
+  // Main run code
+//  findRamp();
+//  goUpRamp();
+//  goDownRamp();
+  findPost();
 }
 
 void loop() {
