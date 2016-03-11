@@ -10,7 +10,7 @@
 
 MPU6050 accelgyro;
 //MPU6050 accelgyro(0x69); // <-- use for AD0 high
-#define GYRO_OFFSET -7.175
+#define GYRO_OFFSET 89
 
 int16_t ax, ay, az;
 int16_t gx, gy, gz;
@@ -50,7 +50,7 @@ void setup() {
 //    Serial.print(accelgyro.getZGyroOffset()); Serial.print("\t"); // 0
     Serial.print("\n");
 //    accelgyro.setXGyroOffset(220);
-    accelgyro.setYGyroOffset(6);
+//    accelgyro.setYGyroOffset(6);
 //    accelgyro.setZGyroOffset(-85);
 //    Serial.print(accelgyro.getXAccelOffset()); Serial.print("\t"); // -76
 //    Serial.print(accelgyro.getYAccelOffset()); Serial.print("\t"); // -2359
@@ -93,7 +93,7 @@ int getTurnAngle(){
   
   while (now - last_time_printed >= 1000000) {
     now = micros();
-    acc = accelgyro.getRotationY() + GYRO_OFFSET;
+    acc = accelgyro.getRotationZ() + GYRO_OFFSET;
 
     pos += acc * (now - last_time_sampled) * (now - last_time_sampled) / (400000000000);
 

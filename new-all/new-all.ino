@@ -11,8 +11,8 @@
  */
 #define GYRO_OFFSET -7.175
 #define YAW_CONSTANT  400000000000
-#define DOWN_RAMP_THRESHOLD 1000
-#define OFF_RAMP_THRESHOLD 3000
+#define DOWN_RAMP_THRESHOLD -500
+#define OFF_RAMP_THRESHOLD 500
 #define OUTPUT_READABLE_ACCELGYRO
 MPU6050 accelgyro;
 int16_t ax, ay, az;
@@ -196,7 +196,7 @@ void goUpRamp() {
     upRampPid.Compute();
     steerHard(0, normalSpeed, output);
 
-    if (accelgyro.getAccelerationZ() < DOWN_RAMP_THRESHOLD) { //TODO: tune threshold
+    if (accelgyro.getAccelerationX() > DOWN_RAMP_THRESHOLD) {
       brake();
       return;
     }
@@ -220,7 +220,7 @@ void goDownRamp(){
       steerSoft(0, 60, output);
     }
 
-    if (accelgyro.getAccelerationZ() > OFF_RAMP_THRESHOLD) { //TODO: tune threshold
+    if (accelgyro.getAccelerationX() < OFF_RAMP_THRESHOLD) {
       drive(1, normalSpeed, 5, 1); //TODO: tune distance
       return;
     }
@@ -231,9 +231,11 @@ void findPost(){
   unsigned long startTime = millis();
   int sonarPing = 0, sonarDist = 0; int postDetected = 130; int postThreshold = 2500; int inclineCount = 0;
   bool postFound = false; bool detected = false;
-  double ax = 1; axBase = 0;
+  double ax = 1; double axBase = 0;
+double pos, acc;
+  unsigned long lastTime = micros();
   
-  pivot(1, 80, 90);
+  pivot(0, 80, 90);
   drive(1, normalSpeed, 0, 0); 
 
   while(!postFound){
@@ -252,31 +254,37 @@ void findPost(){
     }
     delay(30);
   }
-
+  
   pivot(0, 80, 90);
-  
-/*
- * Fix this section
- */
-  brake();
-  delay(100);
-  axBase = accelgyro.getAccelerationX();
   drive(1, normalSpeed, 0, 0);
+
+  if (dir){
+    setLeftMotors(BACKWARD, baseSpeed);
+    setRightMotors(FORWARD, baseSpeed);
+  } else {
+    setLeftMotors(FORWARD, baseSpeed);
+    setRightMotors(BACKWARD, baseSpeed);
+  }
   
-  delay(500);
+  unsigned long now = 0;
+  while(abs(pos) < amount) {
+    delay(2);
+    acc = accelgyro.getRotationY() + GYRO_OFFSET;
+    now = micros();
+    pos += acc * (now - lastTime) * (now - lastTime) / YAW_CONSTANT;
+    lastTime = now;
+//    Serial.println(pos);
+  }
+
   while(true){
     delay(10);
     double ax = accelgyro.getAccelerationX();
-    //double ax = abs((accelgyro.getAccelerationX() - accBase)/accBase) ;
     Serial.println(ax);
-    if (ax < -3000) {
-      break;
+    if (ax < -1000){
+      if (inclineCount++ > 50){
+        break;
+      }
     }
-//    if (ax > 0.2){
-//      if (inclineCount++ > 100){
-////        break;
-//      }
-//    }
   }
   brake();
 }
@@ -303,6 +311,7 @@ void setup() {
 //  goUpRamp();
 //  goDownRamp();
   findPost();
+
 }
 
 void loop() {
