@@ -152,6 +152,7 @@ double readIRSum(){
   for (int i = 0; i < numIRSensors; i++){
     IRSum += readIRSensor(i);
   }
+//  Serial.println(IRSum);
   return IRSum;
 }
 
@@ -199,22 +200,56 @@ void findRamp() {
 }
 
 void goUpRamp() {
-  double Kp_u = 0.03; double Ki_u = 0.3; double Kd_u = 0.05;
+  double Kp_u = 0.03; double Ki_u = 0; double Kd_u = 0.05;
   double input, output;
     
   PID upRampPid(&input, &output, &IRSetpoint, Kp_u,Ki_u,Kd_u, REVERSE);
   upRampPid.SetSampleTime(20);
   upRampPid.SetMode(AUTOMATIC);
   upRampPid.SetOutputLimits(-100, 100);
+
+//  int state = 0;
+//  
+//  int numReadings = 100;
+//  int readings[numReadings];
+//  int readingNum = 0;
+//  int doneReadings = 0;
+//  long sum = 0;
+//  double average;
+//  int PIDed = 0;
+//
+//  for(int i = 0; i < numReadings; i++) {
+//    readings[i] = 0;
+//  }
   
   while(true) {
     input = readIRSum();
+//    PIDed = upRampPid.Compute();
     upRampPid.Compute();
     steerHard(0, normalSpeed, output);
 
-//    if (accelgyro.getAccelerationX() > DOWN_RAMP_THRESHOLD) {
-//      brake();
-//      return;
+//    int value;
+//    if(PIDed) {
+//      value = accelgyro.getAccelerationX();
+//      sum -= readings[readingNum];
+//      sum += value;
+//      readings[readingNum] = value;
+//      readingNum = (readingNum+1)%numReadings;
+//    
+//      if(doneReadings < numReadings) {
+//        doneReadings++;
+//      } else {
+//        average = sum*1.0/numReadings;
+//        if(state == 0) {
+//          if(average < -4000) {
+//            state = 1;
+//          }
+//        } else if(state == 1) {
+//          if(average > -3000) {
+//            break;
+//          }
+//        }
+//      }
 //    }
   }
 }
@@ -284,9 +319,9 @@ void setup() {
 
   // Main run code
 //  findRamp();
-//  goUpRamp();
-//  goDownRamp();
-  findPost();
+  goUpRamp();
+  brake();
+//  findPost();
 
 }
 
