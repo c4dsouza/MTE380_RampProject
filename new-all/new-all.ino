@@ -10,7 +10,8 @@
  * IMU, Motors, Ultrasonic Sensors, IR Sensors and PID
  */
 #define GYRO_OFFSET -7.175
-#define YAW_CONSTANT  400000000000
+#define GYRO_OFFSET_Z 89
+#define SCALE_CONSTANT  400000000000
 #define DOWN_RAMP_THRESHOLD -500
 #define OFF_RAMP_THRESHOLD 500
 #define OUTPUT_READABLE_ACCELGYRO
@@ -69,7 +70,7 @@ void pivot(bool dir, int baseSpeed, int amount){
     delay(2);
     acc = accelgyro.getRotationY() + GYRO_OFFSET;
     now = micros();
-    pos += acc * (now - lastTime) * (now - lastTime) / YAW_CONSTANT;
+    pos += acc * (now - lastTime) * (now - lastTime) / SCALE_CONSTANT;
     lastTime = now;
 //    Serial.println(pos);
   }
@@ -229,10 +230,9 @@ void goDownRamp(){
 
 void findPost(){
   unsigned long startTime = millis();
-  int sonarPing = 0, sonarDist = 0; int postDetected = 130; int postThreshold = 2500; int inclineCount = 0;
+  int sonarPing = 0, sonarDist = 0; int postDetected = 130; int postThreshold = 2000; int inclineCount = 0;
   bool postFound = false; bool detected = false;
-  double ax = 1; double axBase = 0;
-double pos, acc;
+  double acc = 0; double pos = 0;
   unsigned long lastTime = micros();
   
   pivot(0, 80, 90);
@@ -257,35 +257,20 @@ double pos, acc;
   
   pivot(0, 80, 90);
   drive(1, normalSpeed, 0, 0);
-
-  if (dir){
-    setLeftMotors(BACKWARD, baseSpeed);
-    setRightMotors(FORWARD, baseSpeed);
-  } else {
-    setLeftMotors(FORWARD, baseSpeed);
-    setRightMotors(BACKWARD, baseSpeed);
-  }
   
   unsigned long now = 0;
-  while(abs(pos) < amount) {
+  unsigned int dt = 0;
+  lastTime = micros();
+  while(pos < 5) {
     delay(2);
-    acc = accelgyro.getRotationY() + GYRO_OFFSET;
+    acc = accelgyro.getRotationZ() + GYRO_OFFSET_Z;
     now = micros();
-    pos += acc * (now - lastTime) * (now - lastTime) / YAW_CONSTANT;
+    dt = (unsigned int)(now - lastTime);
+    pos += acc * dt * dt / SCALE_CONSTANT;
     lastTime = now;
-//    Serial.println(pos);
+    Serial.println(pos);
   }
-
-  while(true){
-    delay(10);
-    double ax = accelgyro.getAccelerationX();
-    Serial.println(ax);
-    if (ax < -1000){
-      if (inclineCount++ > 50){
-        break;
-      }
-    }
-  }
+  
   brake();
 }
 
