@@ -3,7 +3,12 @@
 #include <Adafruit_MotorShield.h>
 #include "I2Cdev.h"
 #include "MPU6050.h"
-//#include "Wire.h"
+
+// Arduino Wire library is required if I2Cdev I2CDEV_ARDUINO_WIRE implementation
+// is used in I2Cdev.h
+#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+    #include "Wire.h"
+#endif
 
 /*
  * Initializations
@@ -35,7 +40,13 @@ NewPing sonar(ULTRASONIC_PIN, ULTRASONIC_PIN, MAX_DISTANCE);
 #define numIRSensors  4
 static const uint8_t sensor_pin[] = {A11,A12,A13,A14,A15};
 static const uint8_t trigger_pin[] = {51,49,47,45,43};
-double IRSetpoint = 3000;
+double IRSetpoint = 2500;
+
+#define LEVEL_SHIFTER 32
+
+#define RED_LED 44
+#define GREEN_LED 46
+#define BLUE_LED 48
 
 /*
  * Motor drive code
@@ -200,7 +211,7 @@ void findRamp() {
 }
 
 void goUpRamp() {
-  double Kp_u = 0.03; double Ki_u = 0; double Kd_u = 0.05;
+  double Kp_u = 0.03; double Ki_u = 0.3; double Kd_u = 0.05;
   double input, output;
     
   PID upRampPid(&input, &output, &IRSetpoint, Kp_u,Ki_u,Kd_u, REVERSE);
@@ -208,60 +219,62 @@ void goUpRamp() {
   upRampPid.SetMode(AUTOMATIC);
   upRampPid.SetOutputLimits(-100, 100);
 
-//  int state = 0;
-//  
-//  int numReadings = 100;
-//  int readings[numReadings];
-//  int readingNum = 0;
-//  int doneReadings = 0;
-//  long sum = 0;
-//  double average;
-//  int PIDed = 0;
-//
-//  for(int i = 0; i < numReadings; i++) {
-//    readings[i] = 0;
-//  }
+  int state = 0;
+  
+  int numReadings = 25;
+  int readings[numReadings];
+  int readingNum = 0;
+  int doneReadings = 0;
+  long sum = 0;
+  double average;
+  int PIDed = 0;
+
+  for(int i = 0; i < numReadings; i++) {
+    readings[i] = 0;
+  }
   
   while(true) {
     input = readIRSum();
-//    PIDed = upRampPid.Compute();
-    upRampPid.Compute();
+    PIDed = upRampPid.Compute();
+//    upRampPid.Compute();
     steerHard(0, normalSpeed, output);
 
-//    int value;
-//    if(PIDed) {
-//      value = accelgyro.getAccelerationX();
-//      sum -= readings[readingNum];
-//      sum += value;
-//      readings[readingNum] = value;
-//      readingNum = (readingNum+1)%numReadings;
-//    
-//      if(doneReadings < numReadings) {
-//        doneReadings++;
-//      } else {
-//        average = sum*1.0/numReadings;
-//        if(state == 0) {
-//          if(average < -4000) {
-//            state = 1;
-//          }
-//        } else if(state == 1) {
-//          if(average > -3000) {
-//            break;
-//          }
-//        }
-//      }
-//    }
+    int value;
+    if(PIDed) {
+      value = accelgyro.getAccelerationX();
+      sum -= readings[readingNum];
+      sum += value;
+      readings[readingNum] = value;
+      readingNum = (readingNum+1)%numReadings;
+    
+      if(doneReadings < numReadings) {
+        doneReadings++;
+      } else {
+        average = sum*1.0/numReadings;
+        if(state == 0) {
+          if(average < -4000) {
+            state = 1;
+          }
+        } else if(state == 1) {
+          if(average > -3000) {
+            break;
+          }
+        }
+      }
+    }
   }
 }
 
 void findPost(){
   unsigned long startTime = millis();
-  int sonarPing = 0, sonarDist = 0; int postDetected = 130; int postThreshold = 2000; int inclineCount = 0;
+  int sonarPing = 0, sonarDist = 0; int postDetected = 130; int postThreshold = 1500; int inclineCount = 0;
   bool postFound = false; bool detected = false;
   double acc = 0; double pos = 0;
   unsigned long lastTime = micros();
-  
-  pivot(0, 80, 90);
+
+  blinkLED(BLUE_LED,250);
+  drive(0, normalSpeed, 400, 1);
+  pivot(1, 80, 75);
   drive(1, normalSpeed, 0, 0); 
 
   while(!postFound){
@@ -283,11 +296,12 @@ void findPost(){
   
   pivot(0, 80, 90);
   drive(1, normalSpeed, 0, 0);
+  delay(100);
   
   unsigned long now = 0;
   unsigned int dt = 0;
   lastTime = micros();
-  while(pos < 5) {
+  while(pos < 3) {
     delay(2);
     acc = accelgyro.getRotationZ() + GYRO_OFFSET_Z;
     now = micros();
@@ -300,17 +314,46 @@ void findPost(){
   brake();
 }
 
+void setupLED() {
+  pinMode(RED_LED, OUTPUT);
+  pinMode(GREEN_LED, OUTPUT);
+  pinMode(BLUE_LED, OUTPUT);
+  digitalWrite(RED_LED, LOW);
+  digitalWrite(GREEN_LED, LOW);
+  digitalWrite(BLUE_LED, LOW);
+}
+
+void blinkLED(int led, int timeOn) {
+  digitalWrite(led, HIGH);
+  delay(timeOn);
+  digitalWrite(led, LOW);
+}
+
+void loopBlink(int led, int timeOn, int times) {
+  for(int i = 0; i < times; i++) {
+    blinkLED(led, timeOn);
+    delay(timeOn);
+  }
+}
 
 void setup() {
   Serial.begin(38400);
 
   //IMU
-  Wire.begin();
+  // join I2C bus (I2Cdev library doesn't do this automatically)
+  #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+      Wire.begin();
+  #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
+      Fastwire::setup(400, true);
+  #endif
   accelgyro.initialize();
   accelgyro.setYGyroOffset(6);
 
   //IR
   setupIR();
+
+  //debug LED
+  setupLED();
 
   //Motors
   AFMS.begin();
@@ -318,11 +361,12 @@ void setup() {
   //No setup needed for ultrasonic
 
   // Main run code
-//  findRamp();
+  findRamp();
   goUpRamp();
   brake();
+  findPost();
+  loopBlink(BLUE_LED, 500, 5);
 //  findPost();
-
 }
 
 void loop() {
