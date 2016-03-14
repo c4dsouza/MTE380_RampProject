@@ -195,9 +195,10 @@ void findRamp() {
   drive(0, 70,0,0);
   drive(0, 70,0,0);
   drive(0, 70,0,0);
+  
   delay(500);
-
   pivot(1, 150, 90);
+
   drive(0, normalSpeed, 0, 0);
   drive(0, normalSpeed, 0, 0);
   drive(0, normalSpeed, 0, 0);
@@ -312,6 +313,11 @@ void findPost(){
   }
   
   brake();
+  brake();
+  brake();
+  brake();
+  brake();
+  brake();
 }
 
 void setupLED() {
@@ -366,7 +372,6 @@ void setup() {
   brake();
   findPost();
   loopBlink(BLUE_LED, 500, 5);
-//  findPost();
 }
 
 void loop() {
