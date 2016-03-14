@@ -195,8 +195,10 @@ void findRamp() {
   drive(0, 70,0,0);
   drive(0, 70,0,0);
   drive(0, 70,0,0);
-  
-  delay(500);
+
+  blinkLED(BLUE_LED, 500);
+//  delay(500);
+
   pivot(1, 150, 90);
 
   drive(0, normalSpeed, 0, 0);
@@ -208,7 +210,8 @@ void findRamp() {
   drive(0, normalSpeed, 0, 0);
   drive(0, normalSpeed, 0, 0);
 
-  delay(1000);
+  blinkLED(BLUE_LED, 500);
+//  delay(1000);
 }
 
 void goUpRamp() {
@@ -242,7 +245,9 @@ void goUpRamp() {
 
     int value;
     if(PIDed) {
+      ledOn(BLUE_LED);
       value = accelgyro.getAccelerationX();
+      ledOff(BLUE_LED);
       sum -= readings[readingNum];
       sum += value;
       readings[readingNum] = value;
@@ -304,7 +309,9 @@ void findPost(){
   lastTime = micros();
   while(pos < 3) {
     delay(2);
+    ledOn(BLUE_LED);
     acc = accelgyro.getRotationZ() + GYRO_OFFSET_Z;
+    ledOff(BLUE_LED);
     now = micros();
     dt = (unsigned int)(now - lastTime);
     pos += acc * dt * dt / SCALE_CONSTANT;
@@ -340,6 +347,14 @@ void loopBlink(int led, int timeOn, int times) {
     blinkLED(led, timeOn);
     delay(timeOn);
   }
+}
+
+void ledOn(int led) {
+  digitalWrite(led, HIGH);
+}
+
+void ledOff(int led) {
+  digitalWrite(led, LOW);
 }
 
 void setup() {
