@@ -175,6 +175,8 @@ void findRamp() {
   int sonarDistance = 0;
     
   drive(1, normalSpeed-150, 0, 0);
+  setLeftMotors(FORWARD, normalSpeed-153);
+  setRightMotors(FORWARD, normalSpeed-150);
   
   while(true) {
 //    sonarDistance = sonar.convert_cm(sonar.ping_median(3));
@@ -271,19 +273,49 @@ void goUpRamp() {
   }
 }
 
+
+double posZ;
+unsigned long lastTimeZ;
+void resetPositionZ() {
+  posZ = 0;
+  lastTimeZ = micros();
+}
+
+void updatePositionZ() {
+  ledOn(BLUE_LED);
+  double acc = accelgyro.getRotationZ() + GYRO_OFFSET_Z;
+  ledOff(BLUE_LED);
+  unsigned long now = micros();
+  unsigned int dt = (unsigned int)(now - lastTimeZ);
+  posZ += acc * dt * dt / SCALE_CONSTANT;
+  lastTimeZ = now;
+}
+
+
+#define Z_ANGLE_THRESHOLD 5
 void findPost(){
   unsigned long startTime = millis();
-  int sonarPing = 0, sonarDist = 0; int postDetected = 130; int postThreshold = 1500; int inclineCount = 0;
+  int sonarPing = 0, sonarDist = 0; int postDetected = 175; int postThreshold = 1500; int inclineCount = 0;
   bool postFound = false; bool detected = false;
-  double acc = 0; double pos = 0;
-  unsigned long lastTime = micros();
 
   blinkLED(BLUE_LED,250);
   drive(0, normalSpeed, 400, 1);
   pivot(1, 80, 75);
-  drive(1, normalSpeed, 0, 0); 
+  drive(1, normalSpeed, 0, 0);
 
+  resetPositionZ();
+
+  int readTimes = 0;
   while(!postFound){
+    updatePositionZ();
+    if(posZ >= Z_ANGLE_THRESHOLD) {
+      return;
+    }
+    if(readTimes++ < 15) {
+      delay(2);
+      continue;
+    }
+    readTimes = 0;
     sonarDist = sonar.convert_cm(sonar.ping_median(4));
     Serial.println(sonarDist);
     if (sonarDist < postDetected){
@@ -297,26 +329,18 @@ void findPost(){
     } else {
       detected = false;
     }
-    delay(30);
+//    delay(30);
   }
   
   pivot(0, 80, 90);
   drive(1, normalSpeed, 0, 0);
-  delay(100);
+  delay(500);
+  resetPositionZ();
   
-  unsigned long now = 0;
-  unsigned int dt = 0;
-  lastTime = micros();
-  while(pos < 3) {
+  while(posZ < Z_ANGLE_THRESHOLD) {
     delay(2);
-    ledOn(BLUE_LED);
-    acc = accelgyro.getRotationZ() + GYRO_OFFSET_Z;
-    ledOff(BLUE_LED);
-    now = micros();
-    dt = (unsigned int)(now - lastTime);
-    pos += acc * dt * dt / SCALE_CONSTANT;
-    lastTime = now;
-    Serial.println(pos);
+    updatePositionZ();
+    Serial.println(posZ);
   }
   
   brake();
