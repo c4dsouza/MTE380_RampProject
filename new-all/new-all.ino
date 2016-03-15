@@ -44,9 +44,9 @@ double IRSetpoint = 2500;
 
 #define LEVEL_SHIFTER 32
 
-#define RED_LED 44
-#define GREEN_LED 46
-#define BLUE_LED 48
+#define RED_LED 28
+#define GREEN_LED 26
+#define BLUE_LED 24
 
 /*
  * Motor drive code
@@ -331,15 +331,15 @@ void setupLED() {
   pinMode(RED_LED, OUTPUT);
   pinMode(GREEN_LED, OUTPUT);
   pinMode(BLUE_LED, OUTPUT);
-  digitalWrite(RED_LED, LOW);
-  digitalWrite(GREEN_LED, LOW);
-  digitalWrite(BLUE_LED, LOW);
+  digitalWrite(RED_LED, HIGH);
+  digitalWrite(GREEN_LED, HIGH);
+  digitalWrite(BLUE_LED, HIGH);
 }
 
 void blinkLED(int led, int timeOn) {
-  digitalWrite(led, HIGH);
-  delay(timeOn);
   digitalWrite(led, LOW);
+  delay(timeOn);
+  digitalWrite(led, HIGH);
 }
 
 void loopBlink(int led, int timeOn, int times) {
@@ -350,15 +350,21 @@ void loopBlink(int led, int timeOn, int times) {
 }
 
 void ledOn(int led) {
-  digitalWrite(led, HIGH);
+  digitalWrite(RED_LED, HIGH);
+  digitalWrite(GREEN_LED, HIGH);
+  digitalWrite(BLUE_LED, HIGH);
+  digitalWrite(led, LOW);
 }
 
 void ledOff(int led) {
-  digitalWrite(led, LOW);
+  digitalWrite(led, HIGH);
 }
 
 void setup() {
   Serial.begin(38400);
+
+  pinMode(30, OUTPUT);
+  digitalWrite(30, HIGH);
 
   //IMU
   // join I2C bus (I2Cdev library doesn't do this automatically)
@@ -382,11 +388,23 @@ void setup() {
   //No setup needed for ultrasonic
 
   // Main run code
+  blinkLED(RED_LED, 500);
+  blinkLED(GREEN_LED, 500);
+  blinkLED(BLUE_LED, 500);
   findRamp();
   goUpRamp();
   brake();
   findPost();
-  loopBlink(BLUE_LED, 500, 5);
+  brake();
+  blinkLED(RED_LED, 500);
+  blinkLED(GREEN_LED, 500);
+  blinkLED(BLUE_LED, 500);
+  blinkLED(RED_LED, 500);
+  blinkLED(GREEN_LED, 500);
+  blinkLED(BLUE_LED, 500);
+  blinkLED(RED_LED, 500);
+  blinkLED(GREEN_LED, 500);
+  blinkLED(BLUE_LED, 500);
 }
 
 void loop() {
