@@ -252,7 +252,10 @@ void goUpRamp() {
       sum += value;
       readings[readingNum] = value;
       readingNum = (readingNum+1)%numReadings;
-    
+      
+      Serial.print(value); Serial.print(',');
+      Serial.println(average);
+      
       if(doneReadings < numReadings) {
         doneReadings++;
       } else {
@@ -297,21 +300,58 @@ void findPost(){
   int sonarPing = 0, sonarDist = 0; int postDetected = 175; int postThreshold = 1500; int inclineCount = 0;
   bool postFound = false; bool detected = false;
 
+  int state = 0;
+  
+  int numReadings = 25;
+  int readings[numReadings];
+  int readingNum = 0;
+  int doneReadings = 0;
+  long sum = 0;
+  double average;
+  int PIDed = 0;
+
+  for(int i = 0; i < numReadings; i++) {
+    readings[i] = 0;
+  }
+  
   blinkLED(BLUE_LED,250);
   drive(0, normalSpeed, 400, 1);
   pivot(1, 80, 75);
   drive(1, normalSpeed, 0, 0);
   delay(1000);
 
-  resetPositionZ();
+
 
   int readTimes = 0;
+  
   while(!postFound){
-    updatePositionZ();
-    if(posZ >= Z_ANGLE_THRESHOLD) {
-      return;
-    }
-    if(readTimes++ < 3) {
+    
+    int value;
+    if(true) {
+      ledOn(BLUE_LED);
+      value = accelgyro.getAccelerationX();
+      ledOff(BLUE_LED);
+      sum -= readings[readingNum];
+      sum += value;
+      readings[readingNum] = value;
+      readingNum = (readingNum+1)%numReadings;
+
+      Serial.print(value); Serial.print(',');
+      Serial.println(average);
+      
+      if(doneReadings < numReadings) {
+        doneReadings++;
+      } else {
+        average = sum*1.0/numReadings;
+        if(average < -2000) {
+            return;
+        }
+      }
+    }    
+//    if(posZ >= Z_ANGLE_THRESHOLD) {
+//      return;
+//    }
+    if(readTimes++ < 6) {
       delay(5);
       continue;
     }
@@ -335,12 +375,31 @@ void findPost(){
   pivot(0, 80, 90);
   drive(1, normalSpeed, 0, 0);
   delay(500);
-  resetPositionZ();
-  
-  while(posZ < Z_ANGLE_THRESHOLD) {
-    delay(5);
-    updatePositionZ();
-    Serial.println(posZ);
+//  resetPositionZ();
+
+  while(true){
+    int value;
+    if(true) {
+      ledOn(BLUE_LED);
+      value = accelgyro.getAccelerationX();
+      ledOff(BLUE_LED);
+      sum -= readings[readingNum];
+      sum += value;
+      readings[readingNum] = value;
+      readingNum = (readingNum+1)%numReadings;
+
+      Serial.print(value); Serial.print(',');
+      Serial.println(average);
+      
+      if(doneReadings < numReadings) {
+        doneReadings++;
+      } else {
+        average = sum*1.0/numReadings;
+        if(average < -2000) {
+            return;
+        }
+      }
+    }
   }
   
   brake();
