@@ -197,12 +197,10 @@ void findRamp() {
   drive(0, 70,0,0);
   drive(0, 70,0,0);
   drive(0, 70,0,0);
-
   blinkLED(BLUE_LED, 500);
 //  delay(500);
 
   pivot(1, 150, 90);
-
   drive(0, normalSpeed, 0, 0);
   drive(0, normalSpeed, 0, 0);
   drive(0, normalSpeed, 0, 0);
@@ -288,11 +286,12 @@ void updatePositionZ() {
   unsigned long now = micros();
   unsigned int dt = (unsigned int)(now - lastTimeZ);
   posZ += acc * dt * dt / SCALE_CONSTANT;
+//  posZ += acc * (now - lastTimeZ) * (now - lastTimeZ) / SCALE_CONSTANT;
   lastTimeZ = now;
 }
 
 
-#define Z_ANGLE_THRESHOLD 5
+#define Z_ANGLE_THRESHOLD 8
 void findPost(){
   unsigned long startTime = millis();
   int sonarPing = 0, sonarDist = 0; int postDetected = 175; int postThreshold = 1500; int inclineCount = 0;
@@ -302,6 +301,7 @@ void findPost(){
   drive(0, normalSpeed, 400, 1);
   pivot(1, 80, 75);
   drive(1, normalSpeed, 0, 0);
+  delay(1000);
 
   resetPositionZ();
 
@@ -311,8 +311,8 @@ void findPost(){
     if(posZ >= Z_ANGLE_THRESHOLD) {
       return;
     }
-    if(readTimes++ < 15) {
-      delay(2);
+    if(readTimes++ < 3) {
+      delay(5);
       continue;
     }
     readTimes = 0;
@@ -322,7 +322,7 @@ void findPost(){
       if (!detected) {
         detected = true;
         startTime = millis();
-      } else if ((millis() - startTime) > postThreshold) { 
+      } else if ((millis() - startTime) > map(sonarDist, 0, 200, 0, 2)*postThreshold) { 
         postFound = true;
         break;
       }
@@ -338,16 +338,11 @@ void findPost(){
   resetPositionZ();
   
   while(posZ < Z_ANGLE_THRESHOLD) {
-    delay(2);
+    delay(5);
     updatePositionZ();
     Serial.println(posZ);
   }
   
-  brake();
-  brake();
-  brake();
-  brake();
-  brake();
   brake();
 }
 
