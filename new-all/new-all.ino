@@ -173,9 +173,10 @@ double readIRSum(){
 void findRamp() {
   int rampTime = 750;
   int sonarDistance = 0;
-    
-  drive(1, normalSpeed-150, 0, 0);
-  setLeftMotors(FORWARD, normalSpeed-153);
+
+  drive(1, normalSpeed, 2500, 1);
+//  drive(1, normalSpeed-150, 0, 0);
+  setLeftMotors(FORWARD, normalSpeed-147);
   setRightMotors(FORWARD, normalSpeed-150);
   
   while(true) {
@@ -197,7 +198,7 @@ void findRamp() {
   drive(0, 70,0,0);
   drive(0, 70,0,0);
   drive(0, 70,0,0);
-  blinkLED(BLUE_LED, 500);
+  blinkLED(BLUE_LED, 250);
 //  delay(500);
 
   pivot(1, 150, 90);
@@ -343,7 +344,7 @@ void findPost(){
         doneReadings++;
       } else {
         average = sum*1.0/numReadings;
-        if(average < -2000) {
+        if(average < -2200) {
             return;
         }
       }
@@ -362,7 +363,7 @@ void findPost(){
       if (!detected) {
         detected = true;
         startTime = millis();
-      } else if ((millis() - startTime) > map(sonarDist, 0, 200, 0, 2)*postThreshold) { 
+      } else if ((millis() - startTime) > map(sonarDist, 0, 200, 0, 5500)) { 
         postFound = true;
         break;
       }
@@ -395,7 +396,7 @@ void findPost(){
         doneReadings++;
       } else {
         average = sum*1.0/numReadings;
-        if(average < -2000) {
+        if(average < -2200) {
             return;
         }
       }
@@ -466,9 +467,9 @@ void setup() {
   //No setup needed for ultrasonic
 
   // Main run code
-  blinkLED(RED_LED, 500);
-  blinkLED(GREEN_LED, 500);
-  blinkLED(BLUE_LED, 500);
+//  blinkLED(RED_LED, 500);
+//  blinkLED(GREEN_LED, 500);
+//  blinkLED(BLUE_LED, 500);
   findRamp();
   goUpRamp();
   brake();
