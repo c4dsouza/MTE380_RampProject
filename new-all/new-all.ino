@@ -316,7 +316,7 @@ void findPost(){
   
   blinkLED(BLUE_LED,250);
   drive(0, normalSpeed, 400, 1);
-  pivot(1, 80, 75);
+  pivot(1, 80, 80);
   drive(1, normalSpeed, 0, 0);
   delay(1000);
 
