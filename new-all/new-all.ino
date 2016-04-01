@@ -90,17 +90,6 @@ void pivot(bool dir, int baseSpeed, int amount){
   setRightMotors(FORWARD, 0);
 }
 
-void steerSoft(bool dir, int baseSpeed, int amount) {
-  setLeftMotors(FORWARD, baseSpeed);
-  setRightMotors(FORWARD, baseSpeed);
-  
-  if (dir) {
-    ml2->setSpeed(constrain(baseSpeed - abs(amount), motorMinSpeed, motorMaxSpeed));
-  } else {  
-    mr2->setSpeed(constrain(baseSpeed - abs(amount), motorMinSpeed, motorMaxSpeed));
-  }
-}
-
 void steerHard (bool dir, int baseSpeed, int amount) {
   setLeftMotors(BACKWARD, constrain(baseSpeed - amount, motorMinSpeed, motorMaxSpeed));
   setRightMotors(BACKWARD, constrain(baseSpeed + amount, motorMinSpeed, motorMaxSpeed));
@@ -275,27 +264,6 @@ void goUpRamp() {
   }
 }
 
-
-double posZ;
-unsigned long lastTimeZ;
-void resetPositionZ() {
-  posZ = 0;
-  lastTimeZ = micros();
-}
-
-void updatePositionZ() {
-  ledOn(BLUE_LED);
-  double acc = accelgyro.getRotationZ() + GYRO_OFFSET_Z;
-  ledOff(BLUE_LED);
-  unsigned long now = micros();
-  unsigned int dt = (unsigned int)(now - lastTimeZ);
-  posZ += acc * dt * dt / SCALE_CONSTANT;
-//  posZ += acc * (now - lastTimeZ) * (now - lastTimeZ) / SCALE_CONSTANT;
-  lastTimeZ = now;
-}
-
-
-#define Z_ANGLE_THRESHOLD 8
 void findPost(){
   unsigned long startTime = millis();
   int sonarPing = 0, sonarDist = 0; int postDetected = 175; int postThreshold = 1500; int inclineCount = 0;
@@ -349,9 +317,7 @@ void findPost(){
         }
       }
     }    
-//    if(posZ >= Z_ANGLE_THRESHOLD) {
-//      return;
-//    }
+
     if(readTimes++ < 6) {
       delay(5);
       continue;
@@ -376,7 +342,6 @@ void findPost(){
   pivot(0, 80, 90);
   drive(1, normalSpeed, 0, 0);
   delay(500);
-//  resetPositionZ();
 
   while(true){
     int value;
